@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "playwright": {
+      "transportType": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--isolated"]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Temp files
+tmpclaude*
+nul
+
+# Python
+__pycache__/
+*.pyc
