@@ -11,3 +11,6 @@ nul
 # Python
 __pycache__/
 *.pyc
+
+# AI context
+.claude/context/
