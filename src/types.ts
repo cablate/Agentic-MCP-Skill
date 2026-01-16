@@ -1,13 +1,16 @@
 /**
  * MCP Progressive Client type definitions
+ *
+ * 使用 Claude Code 標準格式：
+ * https://code.claude.com/docs/en/mcp
  */
 
 /**
- * Transport type enum
+ * Transport type (使用 Claude Code 標準值)
  */
 export enum TransportType {
   STDIO = "stdio",
-  HTTP_STREAMABLE = "http-streamable",
+  HTTP = "http",
   SSE = "sse"
 }
 
@@ -39,17 +42,27 @@ export interface MCPToolSchema {
 }
 
 /**
- * MCP server configuration
+ * MCP server configuration (Claude Code 標準格式)
+ *
+ * 標準欄位對應：
+ * - type: "stdio" | "http" | "sse"
+ * - url: HTTP/SSE endpoint URL
+ * - headers: 自定義 HTTP headers
+ * - command: stdio 執行命令
+ * - args: stdio 命令參數
+ * - env: 環境變數
  */
 export interface MCPServerConfig {
-  /** Transport type */
-  transportType: TransportType | string;
-  /** Command (for stdio) */
-  command?: string;
-  /** Argument list */
-  args?: string[];
-  /** URL (for http/sse) */
+  /** Transport type (stdio, http, sse) */
+  type?: TransportType | string;
+  /** HTTP/SSE endpoint URL */
   url?: string;
+  /** Custom request headers (for http/sse) */
+  headers?: Record<string, string>;
+  /** Command to execute (for stdio) */
+  command?: string;
+  /** Command arguments (for stdio) */
+  args?: string[];
   /** Environment variables */
   env?: Record<string, string>;
   /** Server description (optional, for AI context) */

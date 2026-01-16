@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0]
+
+- Refactored to unified npm package (agentic-mcp)
+- Replaced HTTP with Socket communication (newline-delimited JSON protocol)
+- Merged cli/ and daemon/ into single src/ structure
+- Archived Python scripts to archive/python-legacy/
+- Updated all commands from `mcp` to `agentic-mcp`
+- Updated system architecture diagrams (Socket instead of HTTP)
+- Updated Environment Variables (removed MCP_DAEMON_PORT)
+- Changed license to Apache-2.0 with acknowledgments
+- Updated README.md and README_zhTW.md for current implementation
+
+
 ## [0.1.1]
 
 - Added custom `description` field support in mcp-servers.json for AI context

@@ -1,39 +1,38 @@
 /**
  * MCP Progressive Client - Progressive disclosure MCP client main class
  *
- * Supports three-layer data disclosure:
+ * This is a wrapper around the official @modelcontextprotocol/sdk Client
+ * that provides three-layer progressive disclosure:
  * 1. Metadata layer: getMetadata() - returns only server information
  * 2. Tool list layer: listTools() - returns tool names and descriptions
  * 3. Tool Schema layer: getToolSchema() - returns complete schema for specific tool
  *
- * Supports three transport methods:
- * - stdio: Standard input/output (local process)
- * - http-streamable: HTTP streaming
- * - sse: Server-Sent Events
+ * The key difference from the official SDK is that we control WHEN to fetch
+ * data, allowing progressive disclosure to minimize initial data transfer.
  */
 
-import { TransportType } from './types/index.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+
 import type {
   MCPServerConfig,
   MCPServerMetadata,
   MCPToolInfo,
   MCPToolSchema,
-  MCPToolCallParams,
   MCPToolCallResult
-} from './types/index.js';
-
-import {
-  BaseTransport,
-  StdioTransport,
-  HttpStreamableTransport,
-  SseTransport
-} from './transports/index.js';
+} from './types.js';
 
 /**
  * MCP Progressive Client class
+ *
+ * Wraps the official SDK Client to provide three-layer progressive disclosure
  */
 export class ProgressiveMCPClient {
-  private transport: BaseTransport | null = null;
+  private client: Client;
+  private transport: Transport | null = null;
   private config: MCPServerConfig;
   private _metadata: MCPServerMetadata | null = null;
   private _toolsCache: Array<{
@@ -44,46 +43,76 @@ export class ProgressiveMCPClient {
 
   constructor(config: MCPServerConfig) {
     this.config = config;
+    this.client = new Client(
+      {
+        name: 'agentic-mcp',
+        version: '0.2.0'
+      },
+      {
+        capabilities: {}
+      }
+    );
   }
 
   /**
-   * Create transport instance
+   * Create transport instance using official SDK
+   * 直接使用標準配置格式 (type: "stdio" | "http" | "sse")
    */
-  private createTransport(): BaseTransport {
-    const transportType =
-      typeof this.config.transportType === 'string'
-        ? (this.config.transportType as TransportType)
-        : this.config.transportType;
+  private createTransport(): Transport {
+    // 使用標準 type 欄位，自動推斷如果未指定
+    let type = this.config.type?.toLowerCase();
 
-    switch (transportType) {
-      case TransportType.STDIO:
+    if (!type) {
+      // 自動推斷：根據配置欄位判斷 transport type
+      if (this.config.command) {
+        type = 'stdio';
+      } else if (this.config.url) {
+        // 有 headers 且有 url → http，否則 → sse
+        type = this.config.headers ? 'http' : 'sse';
+      } else {
+        throw new Error('Cannot infer transport type: please specify type, url, or command');
+      }
+    }
+
+    switch (type) {
+      case 'stdio':
         if (!this.config.command) {
           throw new Error('stdio transport requires command parameter');
         }
-        return new StdioTransport({
+        return new StdioClientTransport({
           command: this.config.command,
           args: this.config.args,
           env: this.config.env
         });
 
-      case TransportType.HTTP_STREAMABLE:
+      case 'http':
         if (!this.config.url) {
-          throw new Error('http-streamable transport requires url parameter');
+          throw new Error('http transport requires url parameter');
         }
-        return new HttpStreamableTransport({
-          url: this.config.url
-        });
+        return new StreamableHTTPClientTransport(
+          new URL(this.config.url),
+          {
+            requestInit: {
+              headers: this.config.headers
+            }
+          }
+        );
 
-      case TransportType.SSE:
+      case 'sse':
         if (!this.config.url) {
           throw new Error('sse transport requires url parameter');
         }
-        return new SseTransport({
-          url: this.config.url
-        });
+        return new SSEClientTransport(
+          new URL(this.config.url),
+          {
+            requestInit: {
+              headers: this.config.headers
+            }
+          }
+        );
 
       default:
-        throw new Error(`Unsupported transport type: ${transportType}`);
+        throw new Error(`Unsupported transport type: ${type}. Supported types: stdio, http, sse`);
     }
   }
 
@@ -91,21 +120,21 @@ export class ProgressiveMCPClient {
    * Connect to MCP server
    */
   async connect(): Promise<void> {
-    if (this.transport?.isConnected()) {
+    if (this.transport) {
       return; // Already connected
     }
 
     this.transport = this.createTransport();
-    await this.transport.connect();
+    await this.client.connect(this.transport);
 
-    // Initialize session
-    const initResult = await this.transport.initialize();
+    // Extract metadata from official SDK client
+    const serverVersion = this.client.getServerVersion();
+    const serverCapabilities = this.client.getServerCapabilities();
 
-    // Extract metadata
     this._metadata = {
-      name: initResult.serverInfo.name,
-      version: initResult.serverInfo.version,
-      capabilities: initResult.capabilities
+      name: serverVersion?.name ?? 'unknown',
+      version: serverVersion?.version ?? '0.0.0',
+      capabilities: serverCapabilities ?? {}
     };
 
     // Use custom description from config if provided
@@ -113,12 +142,13 @@ export class ProgressiveMCPClient {
       this._metadata.description = this.config.description;
     }
 
-    // Cache complete tool list (internal use)
-    const toolsResponse = await this.transport.sendRequest<{ tools: unknown[] }>(
-      'tools/list',
-      {}
-    );
-    this._toolsCache = (toolsResponse.tools as any) || [];
+    // Cache complete tool list (internal use) using official SDK
+    const toolsResponse = await this.client.listTools();
+    this._toolsCache = toolsResponse.tools.map((tool: any) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema
+    }));
   }
 
   /**
@@ -126,7 +156,8 @@ export class ProgressiveMCPClient {
    */
   async disconnect(): Promise<void> {
     if (this.transport) {
-      await this.transport.disconnect();
+      await this.transport.close();
+      this.transport = null;
     }
     this._metadata = null;
     this._toolsCache = [];
@@ -136,7 +167,7 @@ export class ProgressiveMCPClient {
    * Check connection status
    */
   isConnected(): boolean {
-    return this.transport?.isConnected() ?? false;
+    return this.transport !== null;
   }
 
   /**
@@ -207,10 +238,11 @@ export class ProgressiveMCPClient {
     };
   }
 
-  // ========== Generic Request ==========
+  // ========== Generic Request (for daemon use) ==========
 
   /**
-   * Send generic JSON-RPC request
+   * Send generic JSON-RPC request through official SDK
+   * This method is used by the daemon to forward arbitrary MCP requests
    *
    * @param method - MCP method name
    * @param params - Method parameters
@@ -224,13 +256,42 @@ export class ProgressiveMCPClient {
       throw new Error('Not connected to server, please call connect() first');
     }
 
-    return this.transport!.sendRequest<T>(method, params);
+    // Directly use transport for generic requests (daemon use)
+    // This allows forwarding arbitrary MCP methods without schema validation
+    return new Promise<T>((resolve, reject) => {
+      const requestId = Date.now() + Math.random();
+      const request = {
+        jsonrpc: '2.0' as const,
+        id: requestId,
+        method,
+        params
+      };
+
+      // Set up one-time message handler
+      const originalOnMessage = this.transport!.onmessage;
+      this.transport!.onmessage = (message: any) => {
+        if (message.id === requestId) {
+          this.transport!.onmessage = originalOnMessage;
+          if (message.error) {
+            reject(new Error(message.error.message));
+          } else {
+            resolve(message.result as T);
+          }
+        }
+      };
+
+      // Send the request
+      this.transport!.send(request).catch((err) => {
+        this.transport!.onmessage = originalOnMessage;
+        reject(err);
+      });
+    });
   }
 
   // ========== Tool Call ==========
 
   /**
-   * Call MCP tool
+   * Call MCP tool using official SDK
    *
    * @param toolName - Tool name
    * @param args - Tool parameters
@@ -244,15 +305,12 @@ export class ProgressiveMCPClient {
       throw new Error('Not connected to server, please call connect() first');
     }
 
-    const params: MCPToolCallParams = {
+    const result = await this.client.callTool({
       name: toolName,
       arguments: args
-    };
+    });
 
-    return this.transport!.sendRequest<MCPToolCallResult>(
-      'tools/call',
-      params as any
-    );
+    return result as MCPToolCallResult;
   }
 
   // ========== Context Management ==========
@@ -271,7 +329,7 @@ export class ProgressiveMCPClient {
 /**
  * Convenience function to create and connect MCP client
  *
- * @param config - Server configuration
+ * @param config - Server configuration (使用 Claude Code 標準格式)
  * @returns Connected ProgressiveMCPClient instance
  */
 export async function createClient(config: MCPServerConfig): Promise<ProgressiveMCPClient> {

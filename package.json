@@ -1,0 +1,67 @@
+{
+  "name": "@cablate/agentic-mcp",
+  "version": "0.2.4",
+  "description": "Agentic MCP - Three-layer progressive disclosure for MCP servers with Socket daemon",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "agentic-mcp": "./dist/cli/index.js",
+    "agentic-mcp-daemon": "./dist/daemon.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./daemon": {
+      "types": "./dist/daemon.d.ts",
+      "import": "./dist/daemon.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src",
+    "publish": "npm run build && npm publish"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "progressive-disclosure",
+    "anthropic",
+    "claude",
+    "cli",
+    "daemon"
+  ],
+  "author": "CabLate",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@types/eventsource": "^3.0.0",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "eventsource": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_zhTW.md",
+    "LICENSE",
+    "SKILL.md"
+  ]
+}

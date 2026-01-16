@@ -14,3 +14,6 @@ __pycache__/
 
 # AI context
 .claude/context/
+mcp-servers.json
+
+package-lock.json

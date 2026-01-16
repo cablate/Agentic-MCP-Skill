@@ -1,11 +1,10 @@
 <div align="center">
 
-  # MCP Progressive AgentSkill
+  # Agentic-MCP with Skill
 
   ### AgentSkill for MCP - Three-layer progressive disclosure validates AgentSkills.io pattern for efficient MCP token usage
 
   [![Node.js Version](https://img.shields.io/badge/node-%3E=18.0.0-brightgreen)](https://nodejs.org)
-  [![Python Version](https://img.shields.io/badge/python-3.8+-blue)](https://python.org)
 
   **[English](./README.md)** | **[繁體中文](./README_zhTW.md)**
 
@@ -48,7 +47,7 @@ This concept validation attempts to port AgentSkills' successful pattern to the 
 
 1. Can AgentSkills architecture apply to MCP server management?
 2. Is three-layer progressive disclosure effective in MCP scenarios?
-3. Is Python scripts + Simple MCP Client architecture more practical than direct MCP usage?
+3. Is Socket-based daemon architecture more practical than direct MCP usage?
 
 ### Experimental Nature
 
@@ -140,16 +139,16 @@ Feedback and suggestions welcome.
 ### Prerequisites
 
 - Node.js >= 18.0.0
-- Python >= 3.8
 - npm
 
-### 1. Install
+**⚠️ Note**: Python scripts are now archived in `archive/python-legacy/`. The project now uses a unified npm CLI.
+
+### 1. Install and Build
 
 ```bash
-python scripts/setup.py
+npm install
+npm run build
 ```
-
-This command automatically checks environment, installs dependencies, and compiles the daemon.
 
 ### 2. Configure
 
@@ -160,7 +159,7 @@ Edit `mcp-servers.json` in the project root:
   "servers": {
     "playwright": {
       "description": "Browser automation tool for web navigation, screenshots, clicks, form filling, and more",
-      "transportType": "stdio",
+      "type": "stdio",
       "command": "npx",
       "args": ["@playwright/mcp@latest", "--isolated"]
     }
@@ -176,29 +175,127 @@ Edit `mcp-servers.json` in the project root:
 ### 3. Start Daemon
 
 ```bash
-python scripts/daemon_start.py --no-follow
+node dist/cli/index.js daemon start
+```
+
+Or add to PATH for global usage:
+```bash
+npm link
+
+# Then use from anywhere
+agentic-mcp daemon start
 ```
 
 ### 4. Test Connection
 
 ```bash
+# Check daemon health
+agentic-mcp daemon health
+
 # Layer 1: Check server status
-python scripts/mcp_metadata.py --server playwright
+agentic-mcp metadata playwright
 
 # Layer 2: List available tools
-python scripts/mcp_list_tools.py --server playwright
+agentic-mcp list playwright
 
 # Layer 3: View specific tool format
-python scripts/mcp_tool_schema.py --server playwright --tool browser_navigate
+agentic-mcp schema playwright browser_navigate
 ```
 
 ### 5. Call Tool
 
 ```bash
-python scripts/mcp_call.py \
-  --server playwright \
-  --tool browser_navigate \
-  --params '{"url": "https://example.com"}'
+agentic-mcp call playwright browser_navigate --params '{"url": "https://example.com"}'
+```
+
+---
+
+## Multi-Session Support
+
+### Concept
+
+agentic-mcp supports **multiple concurrent sessions** for the same MCP server, inspired by [agent-browser](https://github.com/vercel-labs/agent-browser) design patterns.
+
+**Session Types**:
+- **Global Sessions**: `{server}_global` - Auto-created at daemon startup
+- **Dynamic Sessions**: `{server}_{clientId}` or `{server}_{timestamp}` - Created on-demand
+
+### Why Multiple Sessions?
+
+| Use Case | Description |
+|:---------|:------------|
+| **Multi-Agent Parallel** | Different AI Agents work simultaneously without interference |
+| **Multi-User Isolation** | Separate sessions for different users with their own state |
+| **Environment Separation** | Dev/Test/Prod environments with different configurations |
+| **Resource Optimization** | Shared daemon process, isolated connections |
+
+### Session Management API
+
+#### List All Sessions
+```bash
+agentic-mcp session --list
+
+# Output:
+Active sessions (0):
+  (no active sessions)
+```
+
+#### Create Dynamic Session
+```bash
+# With custom client ID
+agentic-mcp session --create --server serena --client-id agent_a
+
+# Auto-generated session ID (timestamp)
+agentic-mcp session --create --server serena
+```
+
+#### Close Session
+```bash
+agentic-mcp session --close serena_agent_a
+```
+
+#### Switch Session
+```bash
+agentic-mcp session --switch serena_agent_b
+```
+
+### Session Lifecycle
+
+```
+┌─────────────────────────────────────────────┐
+│ Daemon Startup                              │
+│ ├─ Preconnect: serena → serena_global     │
+│ └─ Start cleanup timer (every 5 min)       │
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│ Runtime (Dynamic Sessions)                  │
+│ ├─ agentic-mcp session --create → serena_agent1    │
+│ ├─ agentic-mcp session --create → serena_agent2    │
+│ └─ Auto-cleanup after 30 min idle          │
+└─────────────────────────────────────────────┘
+```
+
+### Advanced Usage
+
+**Multi-Agent Scenario**:
+```bash
+# Terminal 1 - Agent A
+agentic-mcp call serena find_file --session-id serena_agent_a --params '{"file_mask": "*.ts"}'
+
+# Terminal 2 - Agent B (different project state)
+agentic-mcp call serena activate_project --session-id serena_agent_b --params '{"project": "MyProject"}'
+```
+
+**Environment Isolation**:
+```bash
+# Development environment
+agentic-mcp session --create --server serena --client-id dev
+agentic-mcp call serena activate_project --session-id serena_dev --params '{"project": "MyProject_Dev"}'
+
+# Test environment
+agentic-mcp session --create --server serena --client-id test
+agentic-mcp call serena activate_project --session-id serena_test --params '{"project": "MyProject_Test"}'
 ```
 
 ---
@@ -211,51 +308,13 @@ Automate browser operations using Playwright MCP server:
 
 ```bash
 # 1. Navigate to website
-python scripts/mcp_call.py \
-  --server playwright \
-  --tool browser_navigate \
-  --params '{"url": "https://www.apple.com/tw"}'
+agentic-mcp call playwright browser_navigate --params '{"url": "https://www.apple.com/tw"}'
 
 # 2. Take screenshot
-python scripts/mcp_call.py \
-  --server playwright \
-  --tool browser_take_screenshot
+agentic-mcp call playwright browser_take_screenshot
 
 # 3. Click element
-python scripts/mcp_call.py \
-  --server playwright \
-  --tool browser_click \
-  --params '{"element": "Mac link", "ref": "e19"}'
-```
-
-### Multi-Tool Batch Execution
-
-Create `session.json` to execute a series of operations:
-
-```json
-[
-  {
-    "tool": "browser_navigate",
-    "params": {"url": "https://example.com"},
-    "desc": "Navigate to example.com"
-  },
-  {
-    "tool": "browser_take_screenshot",
-    "params": {},
-    "desc": "Take screenshot"
-  },
-  {
-    "tool": "browser_click",
-    "params": {"element": "Submit", "ref": "e42"},
-    "desc": "Click submit button"
-  }
-]
-```
-
-Execute:
-
-```bash
-python scripts/mcp_session.py --server playwright --script session.json
+agentic-mcp call playwright browser_click --params '{"element": "Mac link", "ref": "e19"}'
 ```
 
 ### Hot Reload Configuration
@@ -263,19 +322,15 @@ python scripts/mcp_session.py --server playwright --script session.json
 Reload after modifying `mcp-servers.json` without restarting daemon:
 
 ```bash
-python scripts/daemon_reload.py
+agentic-mcp daemon reload
 ```
 
 Response example:
 
-```json
-{
-  "success": true,
-  "reloaded": true,
-  "oldServers": ["playwright_global"],
-  "newServers": ["playwright_global", "filesystem_global"],
-  "servers": ["playwright", "filesystem"]
-}
+```
+✓ Configuration reloaded
+  Old servers: playwright_global
+  New servers: playwright_global, filesystem_global
 ```
 
 ---
@@ -286,19 +341,20 @@ Response example:
 
 ```
 +-----------------------------+
-|     AI / Skill Layer        |
-|  (Python scripts call API)   |
-|  - mcp_metadata.py           |
-|  - mcp_list_tools.py         |
-|  - mcp_call.py               |
+|     AI / CLI Layer          |
+|  (CLI commands)              |
+|  - agentic-mcp metadata      |
+|  - agentic-mcp list          |
+|  - agentic-mcp schema        |
+|  - agentic-mcp call          |
 +-----------+-----------------+
-            | HTTP (13579)
+            | Socket (newline-delimited JSON)
             v
 +-----------------------------+
 |   MCP Daemon (Long-Running)  |
 |  - Maintain persistent MCP   |
 |    connections               |
-|  - Provide HTTP API          |
+|  - Socket communication      |
 |  - Manage shared sessions    |
 |  - Support Hot Reload        |
 +-----------+-----------------+
@@ -328,7 +384,7 @@ Response example:
 
 | Variable | Default | Description |
 |:---|:---:|:---|
-| `MCP_DAEMON_PORT` | 13579 | Daemon HTTP port |
+| `MCP_DAEMON_CONFIG` | - | Path to custom `mcp-servers.json` configuration file |
 
 ### Transport Types
 
@@ -361,8 +417,8 @@ Edit `mcp-servers.json`:
 ---
 
 ## Resources
-
 - [SKILL.md](./SKILL.md) - Complete usage guide
+- [docs/AGENT_BROWSER_DESIGN_PATTERNS.md](./docs/AGENT_BROWSER_DESIGN_PATTERNS.md) - Design patterns learned from agent-browser
 - [MCP Specification](https://modelcontextprotocol.io)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [AgentSkills.io](https://agentskills.io/home)
