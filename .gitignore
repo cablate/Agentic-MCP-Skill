@@ -17,3 +17,5 @@ __pycache__/
 mcp-servers.json
 
 package-lock.json
+openspec/
+coverage/

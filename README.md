@@ -201,6 +201,53 @@ agentic-mcp call playwright browser_navigate --params '{"url": "https://example.
 
 ---
 
+## Testing
+
+This project uses Vitest for testing with the following test suites:
+
+### Running Tests
+
+```bash
+# Run tests in watch mode
+npm test
+
+# Run tests once
+npm run test:run
+
+# Run with coverage report
+npm run test:coverage
+```
+
+### Test Structure
+
+```
+tests/
+├── unit/
+│   ├── client.test.ts       # ProgressiveMCPClient tests (12 tests)
+│   ├── socket-client.test.ts # SocketClient tests (7 tests)
+│   └── cli/
+│       └── commands.test.ts  # CLI command tests (6 tests)
+```
+
+### Current Coverage
+
+- **Statements**: 61.71%
+- **Branches**: 47.29%
+- **Functions**: 65.85%
+- **Lines**: 61.53%
+
+Test coverage focuses on core modules (`client.ts`, `socket-client.ts`). Daemon integration tests are deferred to future work.
+
+### Test Philosophy
+
+This project follows a **pragmatic progressive** approach:
+- Focus on happy path testing first
+- Use real MCP server (`@modelcontextprotocol/server-filesystem`) for integration
+- Mock only where necessary (e.g., `net` module for SocketClient)
+- Defer complex scenarios (daemon socket tests) to keep initial implementation simple
+
+---
+
 ## Usage Examples
 
 ### Web Automation

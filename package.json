@@ -23,7 +23,10 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src",
-    "publish": "npm run build && npm publish"
+    "publish": "npm run build && npm publish",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "mcp",
@@ -48,11 +51,14 @@
     "eventsource": "^4.1.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/server-filesystem": "^2026.1.14",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^8.56.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.17"
   },
   "engines": {
     "node": ">=18.0.0"
