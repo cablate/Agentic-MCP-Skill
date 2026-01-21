@@ -4,6 +4,9 @@
 
   ### AgentSkill for MCP - Three-layer progressive disclosure validates AgentSkills.io pattern for efficient MCP token usage
 
+  <img src="Banner.png" alt="Agentic-MCP 封面圖" width="100%">
+
+  [![Website](https://img.shields.io/badge/Website-AGENTIC_MCP-blue)](https://agentic-mcp-skill.cablate.com/)
   [![Node.js Version](https://img.shields.io/badge/node-%3E=18.0.0-brightgreen)](https://nodejs.org)
 
   **[English](./README.md)** | **[繁體中文](./README_zhTW.md)**
