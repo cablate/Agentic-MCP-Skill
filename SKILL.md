@@ -1,65 +1,35 @@
 ---
 name: agentic-mcp
-description: Agentic MCP - Three-layer progressive disclosure for MCP servers with Socket daemon. Use when the user needs to interact with MCP servers, query available tools, call MCP tools, or manage the MCP daemon process. Provides socket-based communication for efficient server interaction with three-layer progressive disclosure API.
+description: "Manage MCP servers via a Socket daemon — start the daemon, list available servers, discover tools, read tool schemas, and execute tool calls with progressive disclosure to minimize token usage. Use when the user needs to connect to MCP servers, start or stop the MCP daemon, list available MCP tools, run an MCP tool, check server status, or reload MCP configuration."
 ---
 
 # Agentic MCP
 
-## Quick start
+## Workflow
 
-```bash
-agentic-mcp daemon start --config <mcp-servers.json path>  # Start daemon
-agentic-mcp metadata <server-name>                  # Get server info
-agentic-mcp list <server-name>                      # List tools
-agentic-mcp schema <server-name> <tool-name>        # Get tool schema
-agentic-mcp call <server-name> <tool-name> --params '{"arg":"value"}'  # Call tool
-agentic-mcp daemon stop                             # Stop daemon
-```
+1. **Start daemon**: `agentic-mcp daemon start --config <mcp-servers.json path>`
+2. **Verify running**: `agentic-mcp daemon health` — confirm `✓ Daemon is running` before proceeding
+3. **Layer 1 — Server info**: `agentic-mcp metadata <server>` — returns name, version, status (~50-100 tokens)
+4. **Layer 2 — List tools**: `agentic-mcp list <server>` — returns tool names + descriptions (~200-400 tokens)
+5. **Layer 3 — Tool schema**: `agentic-mcp schema <server> <tool>` — returns full input format (~300-500 tokens/tool)
+6. **Call tool**: `agentic-mcp call <server> <tool> --params '{"argName":"value"}'`
 
-## Core workflow
-
-1. `agentic-mcp daemon start` - Start daemon
-2. `agentic-mcp metadata <server>` - Layer 1: server info
-3. `agentic-mcp list <server>` - Layer 2: available tools
-4. `agentic-mcp schema <server> <tool>` - Layer 3: tool details
-5. `agentic-mcp call <server> <tool> --params '{"arg":"value"}'` - Execute tool
+All parameters must be a JSON object via `--params`. Append `--json` to any command for machine-readable output.
 
 ## Daemon management
 
 ```bash
 agentic-mcp daemon start                           # Start daemon
+agentic-mcp daemon start --config <path>           # Start with custom config
 agentic-mcp daemon health                          # Check status
-agentic-mcp daemon reload                          # Reload config
+agentic-mcp daemon reload                          # Reload config without restart
 agentic-mcp daemon stop                            # Stop daemon
-agentic-mcp daemon start --config <path>           # Custom config
 ```
 
-**Sessions** (isolated instances):
+**Isolated sessions** (run multiple daemons side by side):
 ```bash
-MCP_DAEMON_SESSION=<name> agentic-mcp daemon start
-```
-
-## Query commands
-
-```bash
-agentic-mcp metadata <server>                      # Server info
-agentic-mcp list <server>                          # List tools
-agentic-mcp schema <server> <tool>                 # Tool schema
-agentic-mcp daemon health                          # Check daemon status
-```
-
-## Tool calls
-
-```bash
-agentic-mcp call <server> <tool> --params '{"argName":"value"}'
-```
-
-**All parameters must be JSON object via `--params`**.
-
-**JSON mode**:
-```bash
-agentic-mcp metadata <server> --json
-agentic-mcp call <server> <tool> --params '{"arg":"value"}' --json
+MCP_DAEMON_SESSION=proj1 agentic-mcp daemon start
+MCP_DAEMON_SESSION=proj2 agentic-mcp daemon start
 ```
 
 ## Configuration
@@ -76,49 +46,21 @@ agentic-mcp call <server> <tool> --params '{"arg":"value"}' --json
 }
 ```
 
+## Error recovery
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `✗ MCP daemon is not running` | Daemon not started or crashed | Run `agentic-mcp daemon start` |
+| `✗ Server '<name>' not found` | Server missing from config | Add to `mcp-servers.json`, then `agentic-mcp daemon reload` |
+| `✗ Tool '<name>' not found` | Wrong tool name | Run `agentic-mcp list <server>` to see available tools |
+| `✗ Required argument '<name>' not provided` | Missing param in `--params` | Run `agentic-mcp schema <server> <tool>` to check required args |
+
 ## Socket protocol
 
-**Command** (newline-delimited JSON):
+Commands use newline-delimited JSON over Unix domain socket (or TCP on Windows):
+
 ```json
 {"id":"1","action":"metadata","server":"<server>"}
 ```
 
-**Response**:
-```json
-{"id":"1","success":true,"data":{...}}
-```
-
-**Platform**: Windows (TCP) / Unix (domain socket)
-
-## Examples
-
-**Basic usage**:
-```bash
-agentic-mcp daemon start
-agentic-mcp metadata <server>
-agentic-mcp list <server>
-agentic-mcp schema <server> <tool>
-agentic-mcp call <server> <tool> --params '{"arg":"value"}'
-```
-
-**Multiple sessions**:
-```bash
-MCP_DAEMON_SESSION=proj1 agentic-mcp daemon start
-MCP_DAEMON_SESSION=proj2 agentic-mcp daemon start
-```
-
-## Debugging
-
-```bash
-agentic-mcp daemon health                          # Check status
-agentic-mcp daemon reload                          # Reload after config change
-```
-
-## Errors
-
-```
-✗ MCP daemon is not running
-✗ Server '<name>' not found
-✗ Tool '<name>' not found
-✗ Required argument '<name>' not provided
-```
+Response: `{"id":"1","success":true,"data":{...}}`
