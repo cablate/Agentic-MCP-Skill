@@ -43,9 +43,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@types/eventsource": "^3.0.0",
-    "axios": "^1.6.0",
+    "axios": "^1.20.0",
     "chalk": "^4.1.2",
     "commander": "^11.0.0",
     "eventsource": "^4.1.0"
